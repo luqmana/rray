@@ -1,3 +1,4 @@
+use core::pipes;
 use lmath::funs::common::*;
 
 use geometry::*;
@@ -11,9 +12,9 @@ fn deg2rad(d: float) -> float {
     d * float::consts::pi / 180.0f
 }
 
-fn makePixels(w: uint, h: uint) -> ~[~[Pixel]] {
-    let xs: ~[float] = vec::from_fn(w, |n| n as float);
-    let ys: ~[float] = vec::from_fn(h, |n| n as float);
+fn makePixels(w: uint, h: uint, x: uint, y: uint) -> ~[~[Pixel]] {
+    let xs: ~[float] = vec::from_fn(w, |n| (n + x) as float);
+    let ys: ~[float] = vec::from_fn(h, |n| (n + y) as float);
 
     vec::foldr(ys, ~[], |y, result| {
         result + ~[vec::map(xs, |x| (*x, *y))]
@@ -136,16 +137,66 @@ fn doTrace(s: &Scene, params: SceneParams, posn: Pixel) -> Colour {
 
 fn render(s: &Scene, aa: bool) -> ~[~[Colour]] {
     let params = setupScene(s, aa);
-    vec::map(makePixels(s.width, s.height), |column| {
-        vec::map(*column, |pix| {
-            doTrace(s, params, *pix)
-        })
-    })
+
+    let p = 128;
+
+    let wFit = ((s.width as float) / (p as float)).ceil();
+    let hFit = ((s.height as float) / (p as float)).ceil();
+    let wFit = wFit as uint, hFit = hFit as uint;
+
+    let tasks = pipes::PortSet();
+
+    for uint::range(0, hFit) |i| {
+        for uint::range(0, wFit) |k| {
+
+            let w = if k == (wFit - 1) {
+                        s.width - (p * k)
+                    } else { p };
+            let h = if i == (hFit - 1) {
+                        s.height - (p * i)
+                    } else { p };
+
+            let (to_master, from_task) = pipes::stream();
+            tasks.add(move from_task);
+
+            let grid = makePixels(w, h, p * k, p * i);
+
+            do task::spawn_sched(task::ThreadPerCore) |move to_master, move grid| {
+                vec::map(grid, |col| {
+                    vec::map(*col, |pix| {
+                        // TODO use the same scene that's passed
+                        let scene = getRefScene();
+                        to_master.send((*pix, doTrace(&scene, params, *pix)));
+                    });
+                });
+            };
+        }
+    }
+
+    // Our final result
+    let mut result: ~[~[Colour]] =
+        vec::map(makePixels(s.width, s.height, 0, 0), |col| {
+            vec::map(*col, |_| {
+                (0.0f, 0.0f, 0.0f)
+            })
+        });
+
+    // Now just wait for the tasks
+    let mut left = s.width * s.height;
+    while left > 0 {
+        let ((x, y), colour) = tasks.recv();
+
+        // Flip the y axis
+        result[s.height - 1 - (y as uint)][x as uint] = colour;
+        left -= 1;
+    }
+
+    move result 
 }
 
 fn main() {
 
-    let antialias = false;
+    let antialias = true;
     let refScene = getRefScene();
     let r = render(&refScene, antialias);
 
