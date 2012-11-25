@@ -107,18 +107,25 @@ fn trace(ps: &[Primitive], amb: Vec3<float>, ray: Vec3<float>, origin: Vec3<floa
             (colours.x, colours.y, colours.z)
 
         },
-        None => (0.1f, 0.1f, 0.1f)
+        None => (0.0f, 0.0f, 0.0f)
     }
 }
 
 fn doTrace(s: &Scene, params: SceneParams, posn: Pixel) -> Colour {
     let (aspectRatio, _viewLen, horVec, topPixel) = params;
     let (x, y) = posn;
-    let currentPixel = topPixel
-                        .add_v(&horVec.mul_t(aspectRatio * x))
-                        .add_v(&s.up.mul_t(y));
-    let ray = currentPixel.sub_v(&s.camera);
-    trace(s.primitives, s.ambient, ray, s.camera, s.lights)
+    let subPixels = ~[(x, y), (x, y + 0.5f), (x + 0.5f, y), (x + 0.5f, y + 0.5f)];
+
+    vec::foldr(subPixels, (0.0f, 0.0f, 0.0f), |cs, results| {
+        let (sx, sy) = *cs;
+        let currentPixel = topPixel
+                            .add_v(&horVec.mul_t(aspectRatio * sx))
+                            .add_v(&s.up.mul_t(sy));
+        let ray = currentPixel.sub_v(&s.camera);
+        let (r, g, b) = trace(s.primitives, s.ambient, ray, s.camera, s.lights);
+        let (rr, rg, rb) = results;
+        (0.25f * r + rr, 0.25f * g + rg, 0.25f * b + rb)
+    })
 }
 
 fn render(s: &Scene) -> ~[~[Colour]] {
