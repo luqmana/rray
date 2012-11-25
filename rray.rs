@@ -4,8 +4,8 @@ use lmath::funs::common::*;
 use geometry::*;
 use scene::*;
 
-type Pixel = (float, float);
-type Colour = (float, float, float);
+type Pixel = Vec2<float>;
+type Colour = Vec3<float>;
 type SceneParams = (float, float, Vec3<float>, Vec3<float>, bool);
 
 fn deg2rad(d: float) -> float {
@@ -17,7 +17,7 @@ fn makePixels(w: uint, h: uint, x: uint, y: uint) -> ~[~[Pixel]] {
     let ys = vec::from_fn(h, |n| (n + y) as float);
 
     vec::foldr(ys, ~[], |y, result| {
-        result + ~[vec::map(xs, |x| (*x, *y))]
+        result + ~[vec::map(xs, |x| Vec2::new(*x, *y))]
     })
 }
 
@@ -103,35 +103,35 @@ fn trace(ps: &[Primitive], amb: &Vec3<float>, ray: &Vec3<float>, origin: &Vec3<f
                 specularColour.add_v(&r)
             });
 
-            let colours = diffuse.add_v(&specular.add_v(&vecMult(amb, &mat.diffuse)));
-
-            (colours.x, colours.y, colours.z)
-
+            // Add up the diffuse, specular, and ambience
+            // components for the final colour
+            diffuse.add_v(&specular.add_v(&vecMult(amb, &mat.diffuse)))
         },
-        None => (0.0f, 0.0f, 0.0f)
+        None => Vec3::new(0.0f, 0.0f, 0.0f)
     }
 }
 
-fn doTrace(s: &Scene, params: SceneParams, posn: Pixel) -> Colour {
+fn doTrace(s: &Scene, params: SceneParams, posn: &Pixel) -> Colour {
     let (aspectRatio, _viewLen, horVec, topPixel, aa) = params;
-    let (x, y) = posn;
     let subPixels =
         if aa {
-            ~[(x, y), (x, y + 0.5f), (x + 0.5f, y), (x + 0.5f, y + 0.5f)]
+            ~[*posn,
+              Vec2::new(posn.x, posn.y + 0.5f),
+              Vec2::new(posn.x + 0.5f, posn.y),
+              Vec2::new(posn.x + 0.5f, posn.y + 0.5f)]
         } else {
-            ~[(x, y)]
+            ~[*posn]
         };
     let coef = 1.0f / (vec::len(subPixels) as float);
 
-    vec::foldr(subPixels, (0.0f, 0.0f, 0.0f), |cs, results| {
-        let (sx, sy) = *cs;
+    vec::foldr(subPixels, Vec3::new(0.0f, 0.0f, 0.0f), |cs, results| {
         let currentPixel = topPixel
-                            .add_v(&horVec.mul_t(aspectRatio * sx))
-                            .add_v(&s.up.mul_t(sy));
+                            .add_v(&horVec.mul_t(aspectRatio * cs.x))
+                            .add_v(&s.up.mul_t(cs.y));
         let ray = currentPixel.sub_v(&s.camera);
-        let (r, g, b) = trace(s.primitives, &s.ambient, &ray, &s.camera, s.lights);
-        let (rr, rg, rb) = results;
-        (coef * r + rr, coef * g + rg, coef * b + rb)
+        let colour = trace(s.primitives, &s.ambient, &ray, &s.camera, s.lights);
+
+        colour.mul_t(coef).add_v(&results)
     })
 }
 
@@ -166,7 +166,7 @@ fn render(s: &Scene, aa: bool) -> ~[~[Colour]] {
                     vec::map(*col, |pix| {
                         // TODO use the same scene that's passed
                         let scene = getRefScene();
-                        to_master.send((*pix, doTrace(&scene, params, *pix)));
+                        to_master.send((*pix, doTrace(&scene, params, pix)));
                     });
                 });
             };
@@ -177,17 +177,17 @@ fn render(s: &Scene, aa: bool) -> ~[~[Colour]] {
     let mut result: ~[~[Colour]] =
         vec::map(makePixels(s.width, s.height, 0, 0), |col| {
             vec::map(*col, |_| {
-                (0.0f, 0.0f, 0.0f)
+                Vec3::new(0.0f, 0.0f, 0.0f)
             })
         });
 
     // Now just wait for the tasks
     let mut left = s.width * s.height;
     while left > 0 {
-        let ((x, y), colour) = tasks.recv();
+        let (pos, colour) = tasks.recv();
 
         // Flip the y axis
-        result[s.height - 1 - (y as uint)][x as uint] = colour;
+        result[s.height - 1 - (pos.y as uint)][pos.x as uint] = colour;
         left -= 1;
     }
 
@@ -206,10 +206,10 @@ fn main() {
 
     for uint::range(0, refScene.height) |y| {
         for uint::range(0, refScene.width) |x| {
-            let (r, g, b) = r[y][x];
-            let r = (r * 255.0f).round().clamp(&(0.0f), &(255.0f));
-            let g = (g * 255.0f).round().clamp(&(0.0f), &(255.0f));
-            let b = (b * 255.0f).round().clamp(&(0.0f), &(255.0f));
+            let colour = r[y][x];
+            let r = (colour.x * 255.0f).round().clamp(&(0.0f), &(255.0f));
+            let g = (colour.y * 255.0f).round().clamp(&(0.0f), &(255.0f));
+            let b = (colour.z * 255.0f).round().clamp(&(0.0f), &(255.0f));
 
             io::print(#fmt("%? %? %? ", r as u8, g as u8, b as u8));
         }
