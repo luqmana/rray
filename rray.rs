@@ -13,8 +13,8 @@ fn deg2rad(d: float) -> float {
 }
 
 fn makePixels(w: uint, h: uint, x: uint, y: uint) -> ~[~[Pixel]] {
-    let xs: ~[float] = vec::from_fn(w, |n| (n + x) as float);
-    let ys: ~[float] = vec::from_fn(h, |n| (n + y) as float);
+    let xs = vec::from_fn(w, |n| (n + x) as float);
+    let ys = vec::from_fn(h, |n| (n + y) as float);
 
     vec::foldr(ys, ~[], |y, result| {
         result + ~[vec::map(xs, |x| (*x, *y))]
@@ -33,7 +33,7 @@ fn setupScene(s: &Scene, aa: bool) -> SceneParams {
     (aspectRatio, viewLen, horVec, topPixel, aa)
 }
 
-fn intersectNodes(ps: &[Primitive], ray: Vec3<float>, origin: Vec3<float>) -> Option<Intersection> {
+fn intersectNodes(ps: &[Primitive], ray: &Vec3<float>, origin: &Vec3<float>) -> Option<Intersection> {
     vec::foldr(ps, None, |x, y| {
         match move intersect(x, ray, origin) {
             Some(move newIntersection) => {
@@ -57,7 +57,7 @@ fn vecMult(a: &Vec3<float>, b: &Vec3<float>) -> Vec3<float> {
     Vec3::new(a[0] * b[0], a[1] * b[1], a[2] * b[2])
 }
 
-fn trace(ps: &[Primitive], amb: Vec3<float>, ray: Vec3<float>, origin: Vec3<float>, lights: &[Light]) -> Colour {
+fn trace(ps: &[Primitive], amb: &Vec3<float>, ray: &Vec3<float>, origin: &Vec3<float>, lights: &[Light]) -> Colour {
     match move intersectNodes(ps, ray, origin) {
         Some((iRayLen, iRay, iP)) => {
             let intersection = origin.add_v(&ray.mul_t(iRayLen));
@@ -66,7 +66,7 @@ fn trace(ps: &[Primitive], amb: Vec3<float>, ray: Vec3<float>, origin: Vec3<floa
             let mat = iP.mat;
             let lightIntersections = vec::filter(vec::map(lights, |light| {
                 let shadowRay = light.pos.sub_v(&intersection);
-                (*light, intersectNodes(ps, shadowRay, intersection))
+                (*light, intersectNodes(ps, &shadowRay, &intersection))
             }), |r| {
                 let (_, r) = *r;
                 option::is_none(&r)
@@ -103,7 +103,7 @@ fn trace(ps: &[Primitive], amb: Vec3<float>, ray: Vec3<float>, origin: Vec3<floa
                 specularColour.add_v(&r)
             });
 
-            let colours = diffuse.add_v(&specular.add_v(&vecMult(&amb, &mat.diffuse)));
+            let colours = diffuse.add_v(&specular.add_v(&vecMult(amb, &mat.diffuse)));
 
             (colours.x, colours.y, colours.z)
 
@@ -129,7 +129,7 @@ fn doTrace(s: &Scene, params: SceneParams, posn: Pixel) -> Colour {
                             .add_v(&horVec.mul_t(aspectRatio * sx))
                             .add_v(&s.up.mul_t(sy));
         let ray = currentPixel.sub_v(&s.camera);
-        let (r, g, b) = trace(s.primitives, s.ambient, ray, s.camera, s.lights);
+        let (r, g, b) = trace(s.primitives, &s.ambient, &ray, &s.camera, s.lights);
         let (rr, rg, rb) = results;
         (coef * r + rr, coef * g + rg, coef * b + rb)
     })
@@ -138,7 +138,7 @@ fn doTrace(s: &Scene, params: SceneParams, posn: Pixel) -> Colour {
 fn render(s: &Scene, aa: bool) -> ~[~[Colour]] {
     let params = setupScene(s, aa);
 
-    let p = 128;
+    let p = 256;
 
     let wFit = ((s.width as float) / (p as float)).ceil();
     let hFit = ((s.height as float) / (p as float)).ceil();

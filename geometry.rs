@@ -21,9 +21,9 @@ pub const EPSILON: float = 1.0e-4;
 
 pub type Intersection = (float, Vec3<float>, Primitive);
 
-fn rayEpsilonCheck(rayLen: float, ray: Vec3<float>, line: Vec3<float>, node: &Primitive) -> Option<Intersection> {
+fn rayEpsilonCheck(rayLen: float, ray: &Vec3<float>, line: &Vec3<float>, node: &Primitive) -> Option<Intersection> {
     if rayLen > EPSILON {
-        Some((rayLen, ray.mul_t(rayLen).sub_v(&line), *node))
+        Some((rayLen, ray.mul_t(rayLen).sub_v(line), *node))
     } else {
         None
     }
@@ -43,17 +43,17 @@ fn quadRoot(A: float, B: float, C: float) -> ~[float] {
     }
 }
 
-pub fn intersect(p: &Primitive, ray: Vec3<float>, origin: Vec3<float>) -> Option<Intersection> {
+pub fn intersect(p: &Primitive, ray: &Vec3<float>, origin: &Vec3<float>) -> Option<Intersection> {
 
     // Now do primitive specific intersect testing
     match *p {
         Sphere(_) => {
-            let line = p.pos.sub_v(&origin);
-            let rayLens = quadRoot(ray.length2(), -2.0f * line.dot(&ray), line.length2() - (p.rad * p.rad));
+            let line = p.pos.sub_v(origin);
+            let rayLens = quadRoot(ray.length2(), -2.0f * line.dot(ray), line.length2() - (p.rad * p.rad));
             match vec::len(rayLens) {
-                1 => rayEpsilonCheck(rayLens[0], ray, line, p),
-                2 if rayLens[0] < rayLens[1] => rayEpsilonCheck(rayLens[0], ray, line, p),
-                2 => rayEpsilonCheck(rayLens[1], ray, line, p),
+                1 => rayEpsilonCheck(rayLens[0], ray, &line, p),
+                2 if rayLens[0] < rayLens[1] => rayEpsilonCheck(rayLens[0], ray, &line, p),
+                2 => rayEpsilonCheck(rayLens[1], ray, &line, p),
                 _ => None
             }
         }
