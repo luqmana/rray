@@ -5,7 +5,7 @@ use scene::*;
 
 type Pixel = (float, float);
 type Colour = (float, float, float);
-type SceneParams = (float, float, Vec3<float>, Vec3<float>);
+type SceneParams = (float, float, Vec3<float>, Vec3<float>, bool);
 
 fn deg2rad(d: float) -> float {
     d * float::consts::pi / 180.0f
@@ -20,7 +20,7 @@ fn makePixels(w: uint, h: uint) -> ~[~[Pixel]] {
     })
 }
 
-fn setupScene(s: &Scene) -> SceneParams {
+fn setupScene(s: &Scene, aa: bool) -> SceneParams {
     let aspectRatio = (s.width as float) / (s.height as float);
     let viewLen = (s.height as float) / float::tan(deg2rad(s.fov));
     let horVec = s.view.cross(&s.up).normalize();
@@ -29,7 +29,7 @@ fn setupScene(s: &Scene) -> SceneParams {
                     .add_v(&horVec.mul_t((s.width as float) / -2.0f))
                     .add_v(&s.up.mul_t((s.height as float) / -2.0f));
 
-    (aspectRatio, viewLen, horVec, topPixel)
+    (aspectRatio, viewLen, horVec, topPixel, aa)
 }
 
 fn intersectNodes(ps: &[Primitive], ray: Vec3<float>, origin: Vec3<float>) -> Option<Intersection> {
@@ -112,9 +112,15 @@ fn trace(ps: &[Primitive], amb: Vec3<float>, ray: Vec3<float>, origin: Vec3<floa
 }
 
 fn doTrace(s: &Scene, params: SceneParams, posn: Pixel) -> Colour {
-    let (aspectRatio, _viewLen, horVec, topPixel) = params;
+    let (aspectRatio, _viewLen, horVec, topPixel, aa) = params;
     let (x, y) = posn;
-    let subPixels = ~[(x, y), (x, y + 0.5f), (x + 0.5f, y), (x + 0.5f, y + 0.5f)];
+    let subPixels =
+        if aa {
+            ~[(x, y), (x, y + 0.5f), (x + 0.5f, y), (x + 0.5f, y + 0.5f)]
+        } else {
+            ~[(x, y)]
+        };
+    let coef = 1.0f / (vec::len(subPixels) as float);
 
     vec::foldr(subPixels, (0.0f, 0.0f, 0.0f), |cs, results| {
         let (sx, sy) = *cs;
@@ -124,12 +130,12 @@ fn doTrace(s: &Scene, params: SceneParams, posn: Pixel) -> Colour {
         let ray = currentPixel.sub_v(&s.camera);
         let (r, g, b) = trace(s.primitives, s.ambient, ray, s.camera, s.lights);
         let (rr, rg, rb) = results;
-        (0.25f * r + rr, 0.25f * g + rg, 0.25f * b + rb)
+        (coef * r + rr, coef * g + rg, coef * b + rb)
     })
 }
 
-fn render(s: &Scene) -> ~[~[Colour]] {
-    let params = setupScene(s);
+fn render(s: &Scene, aa: bool) -> ~[~[Colour]] {
+    let params = setupScene(s, aa);
     vec::map(makePixels(s.width, s.height), |column| {
         vec::map(*column, |pix| {
             doTrace(s, params, *pix)
@@ -139,8 +145,9 @@ fn render(s: &Scene) -> ~[~[Colour]] {
 
 fn main() {
 
+    let antialias = false;
     let refScene = getRefScene();
-    let r = render(&refScene);
+    let r = render(&refScene, antialias);
 
     io::println("P3");
     io::println(#fmt("%u %u", refScene.width, refScene.height));
