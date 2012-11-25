@@ -3,8 +3,8 @@ use lmath::funs::common::*;
 use geometry::*;
 use scene::*;
 
-type Pixel = (int, int);
-type Colour = (u8, u8, u8);
+type Pixel = (float, float);
+type Colour = (float, float, float);
 type SceneParams = (float, float, Vec3<float>, Vec3<float>);
 
 fn deg2rad(d: float) -> float {
@@ -12,8 +12,8 @@ fn deg2rad(d: float) -> float {
 }
 
 fn makePixels(w: uint, h: uint) -> ~[~[Pixel]] {
-    let xs: ~[int] = vec::from_fn(w, |n| n as int);
-    let ys: ~[int] = vec::from_fn(h, |n| n as int);
+    let xs: ~[float] = vec::from_fn(w, |n| n as float);
+    let ys: ~[float] = vec::from_fn(h, |n| n as float);
 
     vec::foldr(ys, ~[], |y, result| {
         result + ~[vec::map(xs, |x| (*x, *y))]
@@ -103,14 +103,11 @@ fn trace(ps: &[Primitive], amb: Vec3<float>, ray: Vec3<float>, origin: Vec3<floa
             });
 
             let colours = diffuse.add_v(&specular.add_v(&vecMult(&amb, &mat.diffuse)));
-            let r = (colours.x * 255.0f).clamp(&(0.0f), &(255.0f));
-            let g = (colours.y * 255.0f).clamp(&(0.0f), &(255.0f));
-            let b = (colours.z * 255.0f).clamp(&(0.0f), &(255.0f));
 
-            (r as u8, g as u8, b as u8)
+            (colours.x, colours.y, colours.z)
 
         },
-        None => (26, 26, 26)
+        None => (0.1f, 0.1f, 0.1f)
     }
 }
 
@@ -118,10 +115,9 @@ fn doTrace(s: &Scene, params: SceneParams, posn: Pixel) -> Colour {
     let (aspectRatio, _viewLen, horVec, topPixel) = params;
     let (x, y) = posn;
     let currentPixel = topPixel
-                        .add_v(&horVec.mul_t(aspectRatio * (x as float)))
-                        .add_v(&s.up.mul_t(y as float));
+                        .add_v(&horVec.mul_t(aspectRatio * x))
+                        .add_v(&s.up.mul_t(y));
     let ray = currentPixel.sub_v(&s.camera);
-
     trace(s.primitives, s.ambient, ray, s.camera, s.lights)
 }
 
@@ -146,7 +142,11 @@ fn main() {
     for uint::range(0, refScene.height) |y| {
         for uint::range(0, refScene.width) |x| {
             let (r, g, b) = r[y][x];
-            io::print(#fmt("%? %? %? ", r, g, b));
+            let r = (r * 255.0f).round().clamp(&(0.0f), &(255.0f));
+            let g = (g * 255.0f).round().clamp(&(0.0f), &(255.0f));
+            let b = (b * 255.0f).round().clamp(&(0.0f), &(255.0f));
+
+            io::print(#fmt("%? %? %? ", r as u8, g as u8, b as u8));
         }
         io::println("");
     }
