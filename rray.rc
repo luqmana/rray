@@ -1,0 +1,9 @@
+#[link(name = "RRay", vers = "1.0")];
+
+extern mod std;
+extern mod lmath;
+
+use lmath::vec::*;
+
+mod geometry;
+mod scene;
