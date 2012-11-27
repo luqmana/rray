@@ -16,12 +16,9 @@ fn deg2rad(d: float) -> float {
     d * float::consts::pi / 180.0f
 }
 
-fn makePixels(w: uint, h: uint, x: uint, y: uint) -> ~[~[Pixel]] {
-    let xs = vec::from_fn(w, |n| (n + x) as float);
-    let ys = vec::from_fn(h, |n| (n + y) as float);
-
-    vec::foldr(ys, ~[], |y, result| {
-        result + ~[vec::map(xs, |x| Vec2::new(*x, *y))]
+fn makeGrid(w: uint, h: uint, x: uint, y: uint) -> ~[~[Pixel]] {
+    vec::from_fn(h, |j| {
+        vec::from_fn(w, |i| Vec2::new((i + x) as float, (j + y) as float))
     })
 }
 
@@ -147,7 +144,7 @@ fn render(s: &Scene, aa: bool) -> ~[~[Colour]] unsafe {
 
     // Our final result
     let mut result: ~[~[Colour]] =
-        vec::map(makePixels(s.width, s.height, 0, 0), |col| {
+        vec::map(makeGrid(s.width, s.height, 0, 0), |col| {
             vec::map(*col, |_| {
                 Vec3::new(0.0f, 0.0f, 0.0f)
             })
@@ -182,7 +179,7 @@ fn render(s: &Scene, aa: bool) -> ~[~[Colour]] unsafe {
             let scene = arc::clone::<*libc::c_void>(&arcScene);
 
             do task::spawn_sched(task::ThreadPerCore) |move to_master, move scene| unsafe {
-                vec::map(makePixels(w, h, p * k, p * i), |col| {
+                vec::map(makeGrid(w, h, p * k, p * i), |col| {
                     vec::map(*col, |pix| {
                         let scene: &Scene = cast::transmute(*arc::get::<*libc::c_void>(&scene));
 
