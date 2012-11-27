@@ -1,4 +1,7 @@
-use core::pipes;
+extern mod std;
+
+use std::arc;
+
 use lmath::funs::common::*;
 
 use geometry::*;
@@ -8,6 +11,7 @@ type Pixel = Vec2<float>;
 type Colour = Vec3<float>;
 type SceneParams = (float, float, Vec3<float>, Vec3<float>, bool);
 
+#[inline(always)]
 fn deg2rad(d: float) -> float {
     d * float::consts::pi / 180.0f
 }
@@ -21,7 +25,7 @@ fn makePixels(w: uint, h: uint, x: uint, y: uint) -> ~[~[Pixel]] {
     })
 }
 
-fn setupScene(s: &Scene, aa: bool) -> SceneParams {
+fn setupScene(s: &const Scene, aa: bool) -> SceneParams {
     let aspectRatio = (s.width as float) / (s.height as float);
     let viewLen = (s.height as float) / float::tan(deg2rad(s.fov));
     let horVec = s.view.cross(&s.up).normalize();
@@ -39,10 +43,10 @@ fn intersectNodes(ps: &[Primitive], ray: &Vec3<float>, origin: &Vec3<float>) -> 
             Some(move newIntersection) => {
                 let (rayLen, _, _) = newIntersection;
                 match y {
-                    Some(oldIntersection) => {
-                        let (oRayLen, _, _): Intersection = oldIntersection;
+                    Some(ref oldIntersection) => {
+                        let (oRayLen, _, _): Intersection = *oldIntersection;
                         if oRayLen > rayLen { Some(newIntersection) }
-                        else { Some(oldIntersection) }
+                        else { y }
                     }
                     None => Some(newIntersection)
                 }
@@ -54,7 +58,7 @@ fn intersectNodes(ps: &[Primitive], ray: &Vec3<float>, origin: &Vec3<float>) -> 
 
 #[inline(always)]
 fn vecMult(a: &Vec3<float>, b: &Vec3<float>) -> Vec3<float> {
-    Vec3::new(a[0] * b[0], a[1] * b[1], a[2] * b[2])
+    Vec3::new(a.x * b.x, a.y * b.y, a.z * b.z)
 }
 
 fn trace(ps: &[Primitive], amb: &Vec3<float>, ray: &Vec3<float>, origin: &Vec3<float>, lights: &[Light]) -> Colour {
@@ -77,8 +81,8 @@ fn trace(ps: &[Primitive], amb: &Vec3<float>, ray: &Vec3<float>, origin: &Vec3<f
                 let normalizedShadowRay = shadowRay.normalize();
                 let diffuseCoef = normal.dot(&normalizedShadowRay);
                 let reflectedShadowRay = normalizedShadowRay.sub_v(&normal.mul_t(2.0f * diffuseCoef));
-                let specCoef = float::abs(float::pow(reflectedShadowRay.dot(&normalizedRay) as libc::c_double,
-                                                     mat.shininess as libc::c_double) as float);
+                let specCoef = float::pow(reflectedShadowRay.dot(&normalizedRay) as libc::c_double,
+                                          mat.shininess as libc::c_double) as float;
                 let diffuseColours =
                     if diffuseCoef > EPSILON {
                         vecMult(&mat.diffuse.mul_t(diffuseCoef), &light.colour)
@@ -111,16 +115,16 @@ fn trace(ps: &[Primitive], amb: &Vec3<float>, ray: &Vec3<float>, origin: &Vec3<f
     }
 }
 
-fn doTrace(s: &Scene, params: SceneParams, posn: &Pixel) -> Colour {
-    let (aspectRatio, _viewLen, horVec, topPixel, aa) = params;
+fn doTrace(s: &Scene, params: &SceneParams, posn: &Pixel) -> Colour {
+    let (aspectRatio, _viewLen, horVec, topPixel, aa) = *params;
     let subPixels =
         if aa {
-            ~[*posn,
-              Vec2::new(posn.x, posn.y + 0.5f),
-              Vec2::new(posn.x + 0.5f, posn.y),
-              Vec2::new(posn.x + 0.5f, posn.y + 0.5f)]
+            ~[Vec2::new(posn.x + 0.25f, posn.y + 0.25f),
+              Vec2::new(posn.x + 0.25f, posn.y + 0.75f),
+              Vec2::new(posn.x + 0.75f, posn.y + 0.25f),
+              Vec2::new(posn.x + 0.75f, posn.y + 0.75f)]
         } else {
-            ~[*posn]
+            ~[Vec2::new(posn.x, posn.y)]
         };
     let coef = 1.0f / (vec::len(subPixels) as float);
 
@@ -135,11 +139,21 @@ fn doTrace(s: &Scene, params: SceneParams, posn: &Pixel) -> Colour {
     })
 }
 
-fn render(s: &Scene, aa: bool) -> ~[~[Colour]] {
+fn render(s: &Scene, aa: bool) -> ~[~[Colour]] unsafe {
     let params = setupScene(s, aa);
 
-    let p = 256;
+    let scene: *libc::c_void = cast::transmute(s);
+    let arcScene = arc::ARC(scene);
 
+    // Our final result
+    let mut result: ~[~[Colour]] =
+        vec::map(makePixels(s.width, s.height, 0, 0), |col| {
+            vec::map(*col, |_| {
+                Vec3::new(0.0f, 0.0f, 0.0f)
+            })
+        });
+
+    let p = 512;
     let wFit = ((s.width as float) / (p as float)).ceil();
     let hFit = ((s.height as float) / (p as float)).ceil();
     let wFit = wFit as uint, hFit = hFit as uint;
@@ -149,37 +163,35 @@ fn render(s: &Scene, aa: bool) -> ~[~[Colour]] {
     for uint::range(0, hFit) |i| {
         for uint::range(0, wFit) |k| {
 
-            let w = if k == (wFit - 1) {
-                        s.width - (p * k)
-                    } else { p };
-            let h = if i == (hFit - 1) {
-                        s.height - (p * i)
-                    } else { p };
+            let w =
+                if k == (wFit - 1) {
+                    s.width - (p * k)
+                } else {
+                    p
+                };
+            let h =
+                if i == (hFit - 1) {
+                    s.height - (p * i)
+                } else {
+                    p
+                };
 
             let (to_master, from_task) = pipes::stream();
             tasks.add(move from_task);
 
-            let grid = makePixels(w, h, p * k, p * i);
+            let scene = arc::clone::<*libc::c_void>(&arcScene);
 
-            do task::spawn_sched(task::ThreadPerCore) |move to_master, move grid| {
-                vec::map(grid, |col| {
+            do task::spawn_sched(task::ThreadPerCore) |move to_master, move scene| unsafe {
+                vec::map(makePixels(w, h, p * k, p * i), |col| {
                     vec::map(*col, |pix| {
-                        // TODO use the same scene that's passed
-                        let scene = getRefScene();
-                        to_master.send((*pix, doTrace(&scene, params, pix)));
+                        let scene: &Scene = cast::transmute(*arc::get::<*libc::c_void>(&scene));
+
+                        to_master.send((*pix, doTrace(scene, &params, pix)));
                     });
                 });
             };
         }
     }
-
-    // Our final result
-    let mut result: ~[~[Colour]] =
-        vec::map(makePixels(s.width, s.height, 0, 0), |col| {
-            vec::map(*col, |_| {
-                Vec3::new(0.0f, 0.0f, 0.0f)
-            })
-        });
 
     // Now just wait for the tasks
     let mut left = s.width * s.height;
@@ -211,7 +223,7 @@ fn main() {
             let g = (colour.y * 255.0f).round().clamp(&(0.0f), &(255.0f));
             let b = (colour.z * 255.0f).round().clamp(&(0.0f), &(255.0f));
 
-            io::print(#fmt("%? %? %? ", r as u8, g as u8, b as u8));
+            io::print(#fmt("%d %d %d ", r as int, g as int, b as int));
         }
         io::println("");
     }

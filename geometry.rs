@@ -28,7 +28,7 @@ fn rayEpsilonCheck(rayLen: float, ray: &Vec3<float>, line: &Vec3<float>, node: &
         None
     }
 }
-use std::cmp::FuzzyEq;
+
 fn quadRoot(A: float, B: float, C: float) -> ~[float] {
     if float::abs(A) < EPSILON {
         ~[(-C) / B]
