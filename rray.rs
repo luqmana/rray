@@ -29,7 +29,7 @@ fn setupScene(s: &const Scene, aa: bool) -> SceneParams {
     let centerPixel = s.camera.add_v(&s.view.mul_t(viewLen));
     let topPixel = centerPixel
                     .add_v(&horVec.mul_t((s.width as float) / -2.0f))
-                    .add_v(&s.up.mul_t((s.height as float) / -2.0f));
+                    .add_v(&s.up.mul_t((s.height as float) / 2.0f));
 
     (aspectRatio, viewLen, horVec, topPixel, aa)
 }
@@ -128,7 +128,7 @@ fn doTrace(s: &Scene, params: &SceneParams, posn: &Pixel) -> Colour {
     vec::foldr(subPixels, Vec3::new(0.0f, 0.0f, 0.0f), |cs, results| {
         let currentPixel = topPixel
                             .add_v(&horVec.mul_t(aspectRatio * cs.x))
-                            .add_v(&s.up.mul_t(cs.y));
+                            .add_v(&s.up.mul_t(-cs.y));
         let ray = currentPixel.sub_v(&s.camera);
         let colour = trace(s.primitives, &s.ambient, &ray, &s.camera, s.lights);
 
@@ -136,25 +136,25 @@ fn doTrace(s: &Scene, params: &SceneParams, posn: &Pixel) -> Colour {
     })
 }
 
-fn render(s: &Scene, aa: bool) -> ~[~[Colour]] unsafe {
+fn render(s: &Scene, aa: bool, output: fn(Pixel, Colour)) unsafe {
     let params = setupScene(s, aa);
 
-    let scene: *libc::c_void = cast::transmute(s);
+    // Make an unsafe pointer and stuff
+    // it in an ARC so we can share it 
+    // amongst tasks
+    let scene: *Scene = cast::transmute(s);
     let arcScene = arc::ARC(scene);
 
-    // Our final result
-    let mut result: ~[~[Colour]] =
-        vec::map(makeGrid(s.width, s.height, 0, 0), |col| {
-            vec::map(*col, |_| {
-                Vec3::new(0.0f, 0.0f, 0.0f)
-            })
-        });
-
+    // Block size
     let p = 512;
+
+    // Figure out how many blocks of size
+    // p we'll need
     let wFit = ((s.width as float) / (p as float)).ceil();
     let hFit = ((s.height as float) / (p as float)).ceil();
     let wFit = wFit as uint, hFit = hFit as uint;
 
+    // Group together all the tasks' ports
     let tasks = pipes::PortSet();
 
     for uint::range(0, hFit) |i| {
@@ -176,12 +176,12 @@ fn render(s: &Scene, aa: bool) -> ~[~[Colour]] unsafe {
             let (to_master, from_task) = pipes::stream();
             tasks.add(move from_task);
 
-            let scene = arc::clone::<*libc::c_void>(&arcScene);
+            let scene = arc::clone::<*Scene>(&arcScene);
 
             do task::spawn_sched(task::ThreadPerCore) |move to_master, move scene| unsafe {
                 vec::map(makeGrid(w, h, p * k, p * i), |col| {
                     vec::map(*col, |pix| {
-                        let scene: &Scene = cast::transmute(*arc::get::<*libc::c_void>(&scene));
+                        let scene: &Scene = cast::transmute(*arc::get::<*Scene>(&scene));
 
                         to_master.send((*pix, doTrace(scene, &params, pix)));
                     });
@@ -195,33 +195,41 @@ fn render(s: &Scene, aa: bool) -> ~[~[Colour]] unsafe {
     while left > 0 {
         let (pos, colour) = tasks.recv();
 
-        // Flip the y axis
-        result[s.height - 1 - (pos.y as uint)][pos.x as uint] = colour;
+        // Now just pass it off to the callback
+        output(pos, colour);
+
         left -= 1;
     }
-
-    move result 
 }
 
 fn main() {
 
     let antialias = true;
-    let refScene = getRefScene();
-    let r = render(&refScene, antialias);
+    let scene = getRefScene();
 
     io::println("P3");
-    io::println(#fmt("%u %u", refScene.width, refScene.height));
+    io::println(#fmt("%u %u", scene.width, scene.height));
     io::println("255");
+    io::println("");
 
-    for uint::range(0, refScene.height) |y| {
-        for uint::range(0, refScene.width) |x| {
-            let colour = r[y][x];
-            let r = (colour.x * 255.0f).round().clamp(&(0.0f), &(255.0f));
-            let g = (colour.y * 255.0f).round().clamp(&(0.0f), &(255.0f));
-            let b = (colour.z * 255.0f).round().clamp(&(0.0f), &(255.0f));
+    let mut line = scene.width;
+    render(&scene, antialias, |_pos, colour| {
 
-            io::print(#fmt("%d %d %d ", r as int, g as int, b as int));
+        // TODO: Should probably check things are in
+        // the right order…
+
+        if line == 0 {
+            io::println("");
+            line = scene.width;
         }
-        io::println("");
-    }
+
+        let r = (colour.x * 255.0f).round().clamp(&(0.0f), &(255.0f));
+        let g = (colour.y * 255.0f).round().clamp(&(0.0f), &(255.0f));
+        let b = (colour.z * 255.0f).round().clamp(&(0.0f), &(255.0f));
+
+        io::print(#fmt("%d %d %d ", r as int, g as int, b as int));
+
+        line -= 1;
+    });
+
 }
