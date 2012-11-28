@@ -212,24 +212,42 @@ fn main() {
     io::println("255");
     io::println("");
 
+    let max = (scene.height - 1) * scene.width + scene.width;
+    let mut pixels: ~[Option<Colour>] = vec::from_elem(max, None);
+
+    let mut i = 0;
     let mut line = scene.width;
-    render(&scene, antialias, |_pos, colour| {
+    render(&scene, antialias, |pos, colour| {
 
-        // TODO: Should probably check things are in
-        // the right order…
+        let j = (pos.y as uint) * scene.width + (pos.x as uint);
+        pixels[j] = Some(colour);
 
-        if line == 0 {
-            io::println("");
-            line = scene.width;
+        if i == j {
+            loop {
+                if (pixels[i].is_none()) {
+                    break;
+                }
+
+                let colour = pixels[i].get();
+
+                if line == 0 {
+                    io::println("");
+                    line = scene.width;
+                }
+
+                let r = (colour.x * 255.0f).round().clamp(&(0.0f), &(255.0f));
+                let g = (colour.y * 255.0f).round().clamp(&(0.0f), &(255.0f));
+                let b = (colour.z * 255.0f).round().clamp(&(0.0f), &(255.0f));
+
+                io::print(#fmt("%d %d %d ", r as int, g as int, b as int));
+
+                line -= 1;
+                i += 1;
+                if i == max {
+                    break
+                }
+            }
         }
-
-        let r = (colour.x * 255.0f).round().clamp(&(0.0f), &(255.0f));
-        let g = (colour.y * 255.0f).round().clamp(&(0.0f), &(255.0f));
-        let b = (colour.z * 255.0f).round().clamp(&(0.0f), &(255.0f));
-
-        io::print(#fmt("%d %d %d ", r as int, g as int, b as int));
-
-        line -= 1;
     });
 
 }
