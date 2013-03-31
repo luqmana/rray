@@ -1,7 +1,9 @@
+use core::cell::Cell;
 use geometry::*;
 use lmath::vec::*;
 use numeric::*;
 use scene::*;
+use sdl;
 
 use powf = core::unstable::intrinsics::powf32;
 
@@ -118,37 +120,84 @@ fn doTrace(s: &Scene, sp: &SceneParams, posn: &Pixel) -> Colour {
 }
 
 // Let's render our beautiful scene
-fn render(s: &Scene, antialias: bool) -> ~[~[Colour]] {
+fn render(s: &Scene, antialias: bool, out: comm::Chan<(uint, uint, Colour)>) {
     let params = setupScene(s, antialias);
 
-    do makeGrid(s.width, s.height, 0, 0).map |column| {
-        column.map(|pix| doTrace(s, &params, pix))
+    let grid = makeGrid(s.width, s.height, 0, 0);
+    for grid.each |column| {
+        for column.each |pix| {
+            out.send((pix.x as uint, pix.y as uint, doTrace(s, &params, pix)));
+        }
     }
 }
 
 fn main() {
 
-    let antialias = true;
-    let scene = getRefScene();
+    // Create a port-channel pair so we can get the pixels back
+    let (rport, rchan) = comm::stream();
+    let rchan = Cell(rchan);
 
-    // Create!
-    let r = render(&scene, antialias);
+    do task::spawn_sched(task::ThreadPerCore) {
+        // Get our reference scene
+        let antialias = true;
+        let scene = getRefScene();
 
-    io::println("P3");
-    io::println(fmt!("%u %u", scene.width, scene.height));
-    io::println("255");
+        // Kick off the ray tracing
+        render(&scene, antialias, rchan.take());
 
-    for uint::range(0, scene.height) |y| {
-        for uint::range(0, scene.width) |x| {
-            let pix = r[y][x];
+    }
 
-            // Clamp our rgb values to 0-255
-            let r = (pix.x * 255.0).clamp(0.0, 255.0) as u8;
-            let g = (pix.y * 255.0).clamp(0.0, 255.0) as u8;
-            let b = (pix.z * 255.0).clamp(0.0, 255.0) as u8;
+    do sdl::start {
+        sdl::init([sdl::InitVideo]);
 
-            io::println(fmt!("%? %? %?", r, g, b));
+        sdl::wm::set_caption("Rust Ray Tracer", "rray");
+
+        let screen = match sdl::video::set_video_mode(
+                256, 256, 32, [sdl::video::HWSurface], []) {
+            Ok(screen) => screen,
+            Err(e) => fail!(fmt!("Failed to set video mode: %s", e))
+        };
+
+        // Start with a white screen
+        screen.fill(sdl::video::RGB(255, 255, 255));
+        screen.flip();
+
+        loop main: {
+
+            // Wait for a pixel
+            match rport.try_recv() {
+                Some((x, y, pix)) => {
+
+                    // Clamp our rgb values to 0-255
+                    let r = (pix.x * 255.0).clamp(0.0, 255.0) as u8;
+                    let g = (pix.y * 255.0).clamp(0.0, 255.0) as u8;
+                    let b = (pix.z * 255.0).clamp(0.0, 255.0) as u8;
+
+                    // and draw the pixel!
+                    screen.fill_rect(Some(sdl::Rect { x: x as i16, y: y as i16, w: 1, h: 1 }),
+                                     sdl::video::RGB(r, g, b));
+                }
+                _ => break main
+            }
+
+            screen.flip();
+
         }
+
+        loop {
+            match sdl::event::poll_event() {
+                sdl::event::QuitEvent => break,
+                sdl::event::KeyEvent(k, _, _, _) => {
+                    match k {
+                        sdl::event::EscapeKey => break,
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        sdl::quit();
     }
 
 }

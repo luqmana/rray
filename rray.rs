@@ -2,6 +2,7 @@
 
 extern mod lmath;
 extern mod numeric;
+extern mod sdl;
 extern mod std;
 
 mod geometry;

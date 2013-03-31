@@ -127,8 +127,8 @@ pub fn getRefScene() -> Scene {
         camera: vec3::new(0.0, 0.0, 800.0),
         view: vec3::new(0.0, 0.0, -1.0),
         up: vec3::new(0.0, 1.0, 0.0),
-        width: 2048,
-        height: 2048,
+        width: 256,
+        height: 256,
         fov: 45.0
     }
 }
