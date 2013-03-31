@@ -1,88 +1,134 @@
 use geometry::*;
+use lmath::vec::*;
+use numeric::*;
 
-pub struct Light {
-    pos: Vec3<float>,
-    colour: Vec3<float>
+pub struct SceneParams {
+    aspectRatio: f32,
+    viewLen: f32,
+    horVec: vec3,
+    topPixel: vec3,
+    antialias: bool
 }
 
+// Light source
+pub struct Light {
+    pos: vec3,
+    colour: Colour
+}
+
+// Complete scene
 pub struct Scene {
+    // Light sources
     lights: ~[Light],
-    primitives: ~[Primitive],
-    ambient: Vec3<float>,
-    camera: Vec3<float>,
-    view: Vec3<float>,
-    up: Vec3<float>,
+
+    // Primitives to possibly render
+    primitives: ~[@Primitive],
+
+    // Ambient colour
+    ambient: Colour,
+
+    // Camera location
+    camera: vec3,
+
+    // Viewpoint
+    view: vec3,
+
+    // Which way is "up"
+    up: vec3,
+
+    // Dimensions
     width: uint,
     height: uint,
-    fov: float
+
+    // Field of view
+    fov: f32
 }
 
-// Returns a reference scene
-pub fn getRefScene() -> Scene {
+// Setup some of the scene parameters
+pub fn setupScene(s: &Scene, aa: bool) -> SceneParams {
+    let aspectRatio = (s.width as f32) / (s.height as f32);
+    let viewLen = (s.height as f32) / f32::tan(s.fov.radians());
+    let horVec = s.view.cross(&s.up).normalize();
+    let centerPixel = s.camera.add_v(&s.view.mul_t(viewLen));
+    let topPixel = centerPixel
+                    .add_v(&horVec.mul_t((s.width as f32) / -2.0))
+                    .add_v(&s.up.mul_t((s.height as f32) / 2.0));
 
+    SceneParams {
+        aspectRatio: aspectRatio,
+        viewLen: viewLen,
+        horVec: horVec,
+        topPixel: topPixel,
+        antialias: aa
+    }
+}
+
+// Create a reference scene
+pub fn getRefScene() -> Scene {
+    
     // The materials!
     let mat1 = Material {
-        diffuse: Vec3::new(0.7f, 1.0f, 0.7f),
-        specular: Vec3::new(0.5f, 0.7f, 0.5f),
-        shininess: 25.0f,
-        mirror: 0.3f
+        diffuse: vec3::new(0.7, 1.0, 0.7),
+        specular: vec3::new(0.5, 0.7, 0.5),
+        shininess: 25.0,
+        mirror: 0.3
     }, mat2 = Material {
-        diffuse: Vec3::new(0.5f, 0.5f, 0.5f),
-        specular: Vec3::new(0.5f, 0.7f, 0.5f),
-        shininess: 25.0f,
-        mirror: 0.3f
+        diffuse: vec3::new(0.5, 0.5, 0.5),
+        specular: vec3::new(0.5, 0.7, 0.5),
+        shininess: 25.0,
+        mirror: 0.3
     }, mat3 = Material {
-        diffuse: Vec3::new(1.0f, 0.6f, 0.1f),
-        specular: Vec3::new(0.5f, 0.7f, 0.5f),
-        shininess: 25.0f,
-        mirror: 0.3f
+        diffuse: vec3::new(1.0, 0.6, 0.1),
+        specular: vec3::new(0.5, 0.7, 0.5),
+        shininess: 25.0,
+        mirror: 0.3
     };
 
-    //  Now build the scene
+    // Now build the scene
     Scene {
         lights: ~[
             Light {
-                pos: Vec3::new(-100.0f, 150.0f, 400.0f),
-                colour: Vec3::new(0.7f, 0.7f, 0.7f)
+                pos: vec3::new(-100.0, 150.0, 400.0),
+                colour: vec3::new(0.7, 0.7, 0.7)
             },
             Light {
-                pos: Vec3::new(400.0f, 100.0f, 150.0f),
-                colour: Vec3::new(0.7f, 0.0f, 0.7f)
+                pos: vec3::new(400.0, 100.0, 150.0),
+                colour: vec3::new(0.7, 0.0, 0.7)
             }
         ],
         primitives: ~[
-            Sphere(Sphere {
-                pos: Vec3::new(0.0f, 0.0f, -400.0f),
-                rad: 100.0f,
+            @Sphere {
+                pos: vec3::new(0.0, 0.0, -400.0),
+                rad: 100.0,
                 mat: mat1
-            }),
-            Sphere(Sphere {
-                pos: Vec3::new(200.0f, 50.0f, -100.0f),
-                rad: 150.0f,
+            } as @Primitive,
+            @Sphere {
+                pos: vec3::new(200.0, 50.0, -100.0),
+                rad: 150.0,
                 mat: mat1
-            }),
-            Sphere(Sphere {
-                pos: Vec3::new(0.0f, -1200.0f, -500.0f),
-                rad: 1000.0f,
+            } as @Primitive,
+            @Sphere {
+                pos: vec3::new(0.0, -1200.0, -500.0),
+                rad: 1000.0,
                 mat: mat2
-            }),
-            Sphere(Sphere {
-                pos: Vec3::new(-100.0f, 25.0f, -300.0f),
-                rad: 50.0f,
+            } as @Primitive,
+            @Sphere {
+                pos: vec3::new(-100.0, 25.0, -300.0),
+                rad: 50.0,
                 mat: mat3
-            }),
-            Sphere(Sphere {
-                pos: Vec3::new(0.0f, 100.0f, -250.0f),
-                rad: 25.0f,
+            } as @Primitive,
+            @Sphere {
+                pos: vec3::new(0.0, 100.0, -250.0),
+                rad: 25.0,
                 mat: mat1
-            })
+            } as @Primitive
         ],
-        ambient: Vec3::new(0.3f, 0.3f, 0.3f),
-        camera: Vec3::new(0.0f, 0.0f, 800.0f),
-        view: Vec3::new(0.0f, 0.0f, -1.0f),
-        up: Vec3::new(0.0f, 1.0f, 0.0f),
-        width: 8192,
-        height: 8192,
-        fov: 45.0f
+        ambient: vec3::new(0.3, 0.3, 0.3),
+        camera: vec3::new(0.0, 0.0, 800.0),
+        view: vec3::new(0.0, 0.0, -1.0),
+        up: vec3::new(0.0, 1.0, 0.0),
+        width: 2048,
+        height: 2048,
+        fov: 45.0
     }
 }
