@@ -38,15 +38,17 @@ fn trace(ps: &[@Primitive], amb: &vec3, ray: &vec3, origin: &vec3, lights: &[Lig
             let mat = iP.mat();
 
             // Find where the lights in the scene intersect with the current object
-            let lightIntersections = do lights.map |&light| {
+            let lightIntersections = do lights.filter_mapped |&light| {
                 let shadowRay = light.pos.sub_v(&intersection);
 
-                (light, shadowRay, intersectNodes(ps, &shadowRay, &intersection))
+                match intersectNodes(ps, &shadowRay, &intersection) {
+                    None => Some((light, shadowRay)),
+                    _ => None
+                }
             };
-            let lightIntersections = vec::filter(lightIntersections, |&(_, _, r)| r.is_none());
 
             // Calculate colour values based on the object's material
-            let shadedColours = do lightIntersections.map |&(light, shadowRay, _)| {
+            let shadedColours = do lightIntersections.map |&(light, shadowRay)| {
                 let normalizedShadowRay = shadowRay.normalize();
 
                 // calculate the diffuse coefficient
