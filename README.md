@@ -1,0 +1,1 @@
+To render the scene run `./rray > out.ppm && convert out.ppm out.png`
