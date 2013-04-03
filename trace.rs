@@ -7,12 +7,12 @@ use powf = core::unstable::intrinsics::powf32;
 
 fn makeGrid(w: uint, h: uint, x: uint, y: uint) -> ~[~[Pixel]] {
     vec::from_fn(h, |j| {
-        vec::from_fn(w, |i| vec2::new((i + x) as f32, (j + y) as f32))
+        vec::from_fn(w, |i| Vec2f32::new((i + x) as f32, (j + y) as f32))
     })
 }
 
 // Basically shoot a ray out to every primitive in our scene and find the one in front
-fn intersectNodes(ps: &[@Primitive], ray: &vec3, origin: &vec3) -> Option<Intersection> {
+fn intersectNodes(ps: &[@Primitive], ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection> {
     ps.foldr(None, |x, y: Option<Intersection>| {
         match x.intersect(ray, origin) {
             Some(newIntersection @ (rayLen, _, _)) => {
@@ -27,7 +27,7 @@ fn intersectNodes(ps: &[@Primitive], ray: &vec3, origin: &vec3) -> Option<Inters
 }
 
 // Calculate the colour value for some ray
-fn trace(ps: &[@Primitive], amb: &vec3, ray: &vec3, origin: &vec3, lights: &[Light]) -> Colour {
+fn trace(ps: &[@Primitive], amb: &Vec3f32, ray: &Vec3f32, origin: &Vec3f32, lights: &[Light]) -> Colour {
     match intersectNodes(ps, ray, origin) {
         Some((iRayLen, iRay, iP)) => {
             // We've hit something!
@@ -63,19 +63,19 @@ fn trace(ps: &[@Primitive], amb: &vec3, ray: &vec3, origin: &vec3, lights: &[Lig
                 // the diffuse component
                 let diffuseColours = if diffuseCoef > EPSILON {
                     mat.diffuse.mul_t(diffuseCoef).mul_v(&light.colour)
-                } else { vec3::zero() };
+                } else { Vec3f32::zero() };
 
                 // and the specular component
                 let specularColours = if specularCoef > EPSILON {
                     mat.specular.mul_t(specularCoef).mul_v(&light.colour)
-                } else { vec3::zero() };
+                } else { Vec3f32::zero() };
 
                 (diffuseColours, specularColours)
             };
 
             // Now add the colours up from all the light sources
             let (diffuse, specular) =
-                do shadedColours.foldr((vec3::zero(), vec3::zero()))
+                do shadedColours.foldr((Vec3f32::zero(), Vec3f32::zero()))
                   |&(diffuseColour, specularColour), (rDiffuseColour, rSpecularColour)| {
 
                     (diffuseColour.add_v(&rDiffuseColour), specularColour.add_v(&rSpecularColour))
@@ -86,7 +86,7 @@ fn trace(ps: &[@Primitive], amb: &vec3, ray: &vec3, origin: &vec3, lights: &[Lig
         }
 
         // No intersection, so just give back black
-        _ => vec3::zero()
+        _ => Vec3f32::zero()
     }
 }
 
@@ -95,18 +95,18 @@ fn doTrace(s: &Scene, sp: &SceneParams, posn: &Pixel) -> Colour {
 
     // If antialias is on break the pixel into 4 'sub pixels'
     let subPixels = if sp.antialias {
-        ~[vec2::new(posn.x + 0.25, posn.y + 0.25),
-          vec2::new(posn.x + 0.25, posn.y + 0.75),
-          vec2::new(posn.x + 0.75, posn.y + 0.25),
-          vec2::new(posn.x + 0.75, posn.y + 0.75)]
+        ~[Vec2f32::new(posn.x + 0.25, posn.y + 0.25),
+          Vec2f32::new(posn.x + 0.25, posn.y + 0.75),
+          Vec2f32::new(posn.x + 0.75, posn.y + 0.25),
+          Vec2f32::new(posn.x + 0.75, posn.y + 0.75)]
     } else {
-        ~[vec2::new(posn.x, posn.y)]
+        ~[Vec2f32::new(posn.x, posn.y)]
     };
 
     // Evenly weight the colour contribution of each sub pixel
     let coef = 1.0 / (subPixels.len() as f32);
 
-    subPixels.foldr(vec3::zero(), |cs, results| {
+    subPixels.foldr(Vec3f32::zero(), |cs, results| {
         let currentPixel = sp.topPixel
                             .add_v(&sp.horVec.mul_t(sp.aspectRatio * cs.x))
                             .add_v(&s.up.mul_t(-cs.y));
