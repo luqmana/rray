@@ -6,14 +6,16 @@ use scene::*;
 use powf = core::unstable::intrinsics::powf32;
 
 fn makeGrid(w: uint, h: uint, x: uint, y: uint) -> ~[~[Pixel]] {
-    vec::from_fn(h, |j| {
-        vec::from_fn(w, |i| Vec2f32::new((i + x) as f32, (j + y) as f32))
-    })
+    do vec::from_fn(h) |j| {
+        do vec::from_fn(w) |i| {
+            Vec2f32::new((i + x) as f32, (j + y) as f32)
+        }
+    }
 }
 
 // Basically shoot a ray out to every primitive in our scene and find the one in front
 fn intersectNodes(ps: &[@Primitive], ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection> {
-    ps.foldr(None, |x, y: Option<Intersection>| {
+    do ps.foldr(None) |x, y: Option<Intersection>| {
         match x.intersect(ray, origin) {
             Some(newIntersection @ (rayLen, _, _)) => {
                 match y {
@@ -23,7 +25,7 @@ fn intersectNodes(ps: &[@Primitive], ray: &Vec3f32, origin: &Vec3f32) -> Option<
             }
             None => y
         }
-    })
+    }
 }
 
 // Calculate the colour value for some ray
@@ -106,7 +108,7 @@ fn doTrace(s: &Scene, sp: &SceneParams, posn: &Pixel) -> Colour {
     // Evenly weight the colour contribution of each sub pixel
     let coef = 1.0 / (subPixels.len() as f32);
 
-    subPixels.foldr(Vec3f32::zero(), |cs, results| {
+    do subPixels.foldr(Vec3f32::zero()) |cs, results| {
         let currentPixel = sp.topPixel
                             .add_v(&sp.horVec.mul_t(sp.aspectRatio * cs.x))
                             .add_v(&s.up.mul_t(-cs.y));
@@ -114,7 +116,7 @@ fn doTrace(s: &Scene, sp: &SceneParams, posn: &Pixel) -> Colour {
         let colour = trace(s.primitives, &s.ambient, &ray, &s.camera, s.lights);
 
         colour.mul_t(coef).add_v(&results)
-    })
+    }
 }
 
 // Let's render our beautiful scene
