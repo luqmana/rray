@@ -30,65 +30,61 @@ fn intersectNodes(ps: &[@Primitive], ray: &Vec3f32, origin: &Vec3f32) -> Option<
 
 // Calculate the colour value for some ray
 fn trace(ps: &[@Primitive], amb: &Vec3f32, ray: &Vec3f32, origin: &Vec3f32, lights: &[Light]) -> Colour {
-    match intersectNodes(ps, ray, origin) {
-        Some((iRayLen, iRay, iP)) => {
-            // We've hit something!
+    do intersectNodes(ps, ray, origin).map_default(
+        Vec3f32::zero() // No intersection, so just give back black
+    ) |&(iRayLen, iRay, iP)| {
+        // We've hit something!
+        let intersection = origin.add_v(&ray.mul_t(iRayLen));
+        let normal = iRay.normalize();
+        let normalizedRay = ray.normalize();
+        let mat = iP.mat();
 
-            let intersection = origin.add_v(&ray.mul_t(iRayLen));
-            let normal = iRay.normalize();
-            let normalizedRay = ray.normalize();
-            let mat = iP.mat();
+        // Find where the lights in the scene intersect with the current object
+        let lightIntersections = do lights.filter_mapped |&light| {
+            let shadowRay = light.pos.sub_v(&intersection);
 
-            // Find where the lights in the scene intersect with the current object
-            let lightIntersections = do lights.filter_mapped |&light| {
-                let shadowRay = light.pos.sub_v(&intersection);
+            match intersectNodes(ps, &shadowRay, &intersection) {
+                None => Some((light, shadowRay)),
+                _ => None
+            }
+        };
 
-                match intersectNodes(ps, &shadowRay, &intersection) {
-                    None => Some((light, shadowRay)),
-                    _ => None
-                }
+        // Calculate colour values based on the object's material
+        let shadedColours = do lightIntersections.map |&(light, shadowRay)| {
+            let normalizedShadowRay = shadowRay.normalize();
+
+            // calculate the diffuse coefficient
+            let diffuseCoef = normal.dot(&normalizedShadowRay);
+
+            // and the specular coefficient
+            let refShadowRay = normalizedShadowRay.sub_v(&normal.mul_t(2.0 * diffuseCoef));
+            let specularCoef = refShadowRay.dot(&normalizedRay).pow(mat.shininess);
+
+            // Now for the colours
+
+            // the diffuse component
+            let diffuseColours = if diffuseCoef > EPSILON {
+                mat.diffuse.mul_t(diffuseCoef).mul_v(&light.colour)
+            } else { Vec3f32::zero() };
+
+            // and the specular component
+            let specularColours = if specularCoef > EPSILON {
+                mat.specular.mul_t(specularCoef).mul_v(&light.colour)
+            } else { Vec3f32::zero() };
+
+            (diffuseColours, specularColours)
+        };
+
+        // Now add the colours up from all the light sources
+        let (diffuse, specular) =
+            do shadedColours.foldr((Vec3f32::zero(), Vec3f32::zero()))
+              |&(diffuseColour, specularColour), (rDiffuseColour, rSpecularColour)| {
+
+                (diffuseColour.add_v(&rDiffuseColour), specularColour.add_v(&rSpecularColour))
             };
 
-            // Calculate colour values based on the object's material
-            let shadedColours = do lightIntersections.map |&(light, shadowRay)| {
-                let normalizedShadowRay = shadowRay.normalize();
-
-                // calculate the diffuse coefficient
-                let diffuseCoef = normal.dot(&normalizedShadowRay);
-
-                // and the specular coefficient
-                let refShadowRay = normalizedShadowRay.sub_v(&normal.mul_t(2.0 * diffuseCoef));
-                let specularCoef = refShadowRay.dot(&normalizedRay).pow(mat.shininess);
-
-                // Now for the colours
-
-                // the diffuse component
-                let diffuseColours = if diffuseCoef > EPSILON {
-                    mat.diffuse.mul_t(diffuseCoef).mul_v(&light.colour)
-                } else { Vec3f32::zero() };
-
-                // and the specular component
-                let specularColours = if specularCoef > EPSILON {
-                    mat.specular.mul_t(specularCoef).mul_v(&light.colour)
-                } else { Vec3f32::zero() };
-
-                (diffuseColours, specularColours)
-            };
-
-            // Now add the colours up from all the light sources
-            let (diffuse, specular) =
-                do shadedColours.foldr((Vec3f32::zero(), Vec3f32::zero()))
-                  |&(diffuseColour, specularColour), (rDiffuseColour, rSpecularColour)| {
-
-                    (diffuseColour.add_v(&rDiffuseColour), specularColour.add_v(&rSpecularColour))
-                };
-
-            // Add in the ambient colour and voilà, we have our final colour value
-            diffuse.add_v(&specular.add_v(&amb.mul_v(&mat.diffuse)))
-        }
-
-        // No intersection, so just give back black
-        _ => Vec3f32::zero()
+        // Add in the ambient colour and voilà, we have our final colour value
+        diffuse.add_v(&specular.add_v(&amb.mul_v(&mat.diffuse)))
     }
 }
 

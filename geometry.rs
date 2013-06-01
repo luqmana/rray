@@ -38,7 +38,6 @@ impl Primitive for Sphere {
     // Determine if a ray from some origin intersects with us
     // and if so give back the intersection point
     fn intersect(&self, ray: &vec3, origin: &vec3) -> Option<Intersection> {
-
         // Determine the ray from the origin to us and solve
         // the quadratic equation to check for an intersection
         let line = self.pos.sub_v(origin);
@@ -55,14 +54,11 @@ impl Primitive for Sphere {
 
         // Finally, if we've found one, return the intersection point
         // that is intersection ray, it's length and a reference to the object
-        match shortestRay {
-            Some(rayLen) if rayLen > EPSILON => {
-                // Calculate the intersection ray
-                let iRay = ray.mul_t(rayLen).sub_v(&line);
-
-                Some((rayLen, iRay, @*self as @Primitive))
-            }
-            _ => None
+        do shortestRay.map |&rayLen| {
+            if rayLen > EPSILON {
+                let intersect_ray = ray.mul_t(rayLen).sub_v(&line);
+                Some((rayLen, intersect_ray, @*self as @Primitive))
+            } else { None }
         }
     }
 
