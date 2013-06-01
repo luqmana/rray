@@ -1,6 +1,5 @@
 use geometry::*;
 use lmath::vec::*;
-use numeric::*;
 
 pub struct SceneParams {
     aspectRatio: f32,
@@ -47,7 +46,7 @@ pub struct Scene {
 // Setup some of the scene parameters
 pub fn setupScene(s: &Scene, aa: bool) -> SceneParams {
     let aspectRatio = (s.width as f32) / (s.height as f32);
-    let viewLen = (s.height as f32) / f32::tan(s.fov.radians());
+    let viewLen = (s.height as f32) / s.fov.radians().tan();
     let horVec = s.view.cross(&s.up).normalize();
     let centerPixel = s.camera.add_v(&s.view.mul_t(viewLen));
     let topPixel = centerPixel
@@ -65,7 +64,7 @@ pub fn setupScene(s: &Scene, aa: bool) -> SceneParams {
 
 // Create a reference scene
 pub fn getRefScene() -> Scene {
-    
+
     // The materials!
     let mat1 = Material {
         diffuse: Vec3f32::new(0.7, 1.0, 0.7),

@@ -1,9 +1,9 @@
+use std::uint;
+use std::vec;
+
 use geometry::*;
 use lmath::vec::*;
-use numeric::*;
 use scene::*;
-
-use powf = core::unstable::intrinsics::powf32;
 
 fn makeGrid(w: uint, h: uint, x: uint, y: uint) -> ~[~[Pixel]] {
     do vec::from_fn(h) |j| {
@@ -33,7 +33,7 @@ fn trace(ps: &[@Primitive], amb: &Vec3f32, ray: &Vec3f32, origin: &Vec3f32, ligh
     match intersectNodes(ps, ray, origin) {
         Some((iRayLen, iRay, iP)) => {
             // We've hit something!
-        
+
             let intersection = origin.add_v(&ray.mul_t(iRayLen));
             let normal = iRay.normalize();
             let normalizedRay = ray.normalize();
@@ -58,7 +58,7 @@ fn trace(ps: &[@Primitive], amb: &Vec3f32, ray: &Vec3f32, origin: &Vec3f32, ligh
 
                 // and the specular coefficient
                 let refShadowRay = normalizedShadowRay.sub_v(&normal.mul_t(2.0 * diffuseCoef));
-                let specularCoef = powf(refShadowRay.dot(&normalizedRay), mat.shininess);
+                let specularCoef = refShadowRay.dot(&normalizedRay).pow(mat.shininess);
 
                 // Now for the colours
 
@@ -136,9 +136,9 @@ fn main() {
     // Create!
     let r = render(&scene, antialias);
 
-    io::println("P3");
-    io::println(fmt!("%u %u", scene.width, scene.height));
-    io::println("255");
+    println("P3");
+    println(fmt!("%u %u", scene.width, scene.height));
+    println("255");
 
     for uint::range(0, scene.height) |y| {
         for uint::range(0, scene.width) |x| {
@@ -149,7 +149,7 @@ fn main() {
             let g = (pix.y * 255.0).clamp(0.0, 255.0) as u8;
             let b = (pix.z * 255.0).clamp(0.0, 255.0) as u8;
 
-            io::println(fmt!("%? %? %?", r, g, b));
+            println(fmt!("%? %? %?", r, g, b));
         }
     }
 

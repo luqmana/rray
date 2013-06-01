@@ -42,8 +42,8 @@ impl Primitive for Sphere {
         // Determine the ray from the origin to us and solve
         // the quadratic equation to check for an intersection
         let line = self.pos.sub_v(origin);
-        let rayLens = utils::quadRoot(ray.length2(), -2.0 * line.dot(ray),
-                                      line.length2() - utils::powif(self.rad, 2));
+        let rayLens = quadRoot(ray.length2(), -2.0 * line.dot(ray),
+                               line.length2() - self.rad.pow(2.0));
 
         // Find the shortest ray which hits us, if any
         let shortestRay = match rayLens.len() {
@@ -52,7 +52,7 @@ impl Primitive for Sphere {
             2 => Some(rayLens[1]),
             _ => None
         };
-        
+
         // Finally, if we've found one, return the intersection point
         // that is intersection ray, it's length and a reference to the object
         match shortestRay {
@@ -73,27 +73,18 @@ impl Primitive for Sphere {
     }
 }
 
+fn quadRoot(a: f32, b: f32, c: f32) -> ~[f32] {
+    if a.abs() < EPSILON {
+        ~[(-c) / b]
+    } else {
+        let d = b.pow(2.0) - (4.0 * a * c);
+        if d.is_positive() {
+            let sq = d.sqrt();
+            let ta = a * 2.0;
 
-// Utils
-mod utils {
-    pub use super::*;
-    pub use fabsf = core::unstable::intrinsics::fabsf32;
-    pub use powif = core::unstable::intrinsics::powif32;
-    pub use sqrtf = core::unstable::intrinsics::sqrtf32;
-
-    pub fn quadRoot(a: f32, b: f32, c: f32) -> ~[f32] {
-        if fabsf(a) < EPSILON {
-            ~[(-c) / b]
+            ~[((-b) + sq) / ta, ((-b) - sq) / ta]
         } else {
-            let d = powif(b, 2) - (4.0 * a * c);
-            if f32::is_positive(d) {
-                let sq = sqrtf(d);
-                let ta = a * 2.0;
-
-                ~[((-b) + sq) / ta, ((-b) - sq) / ta]
-            } else {
-                ~[]
-            }
+            ~[]
         }
     }
 }
