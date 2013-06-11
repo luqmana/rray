@@ -31,7 +31,7 @@ fn main() {
             let g = (pix.y * 255.0).clamp(&0.0, &255.0) as u8;
             let b = (pix.z * 255.0).clamp(&0.0, &255.0) as u8;
 
-            std::str::push_str(&mut data, fmt!("%? %? %?", r, g, b));
+            data.push_str(fmt!("%? %? %?", r, g, b));
         }
     }
 
