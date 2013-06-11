@@ -2,14 +2,14 @@ use lmath::vec::*;
 
 pub static EPSILON: f32 = 1.0e-4;
 
-pub type Pixel = vec2;
-pub type Colour = vec3;
-pub type Intersection = (f32, vec3, @Primitive);
+pub type Pixel = Vec2f32;
+pub type Colour = Vec3f32;
+pub type Intersection = (f32, Vec3f32, @Primitive);
 
 pub trait Primitive {
     // Determine if a ray from some origin intersects with us
     // and if so give back the intersection point
-    fn intersect(&self, ray: &vec3, origin: &vec3) -> Option<Intersection>;
+    fn intersect(&self, ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection>;
 
     // Get the material
     #[inline(always)]
@@ -28,16 +28,15 @@ pub struct Material {
 // TODO: Add more than just spheres
 
 pub struct Sphere {
-    pos: vec3,         // Position
+    pos: Vec3f32,      // Position
     rad: f32,          // Radius
     mat: Material      // Material
 }
 
 impl Primitive for Sphere {
-
     // Determine if a ray from some origin intersects with us
     // and if so give back the intersection point
-    fn intersect(&self, ray: &vec3, origin: &vec3) -> Option<Intersection> {
+    fn intersect(&self, ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection> {
         // Determine the ray from the origin to us and solve
         // the quadratic equation to check for an intersection
         let line = self.pos.sub_v(origin);
@@ -54,7 +53,7 @@ impl Primitive for Sphere {
 
         // Finally, if we've found one, return the intersection point
         // that is intersection ray, it's length and a reference to the object
-        do shortestRay.map |&rayLen| {
+        do shortestRay.chain |rayLen| {
             if rayLen > EPSILON {
                 let intersect_ray = ray.mul_t(rayLen).sub_v(&line);
                 Some((rayLen, intersect_ray, @*self as @Primitive))
