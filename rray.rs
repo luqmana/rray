@@ -1,7 +1,7 @@
 #[link(name = "rray", vers = "0.1")];
 
 extern mod lmath;
-extern mod std;
+extern mod extra;
 
 use std::uint;
 
@@ -20,6 +20,8 @@ fn main() {
     println(fmt!("%u %u", scene.width, scene.height));
     println("255");
 
+    let mut data = std::str::with_capacity(scene.width * scene.height * 8);
+
     for uint::range(0, scene.height) |y| {
         for uint::range(0, scene.width) |x| {
             let pix = r[y][x];
@@ -29,7 +31,9 @@ fn main() {
             let g = (pix.y * 255.0).clamp(&0.0, &255.0) as u8;
             let b = (pix.z * 255.0).clamp(&0.0, &255.0) as u8;
 
-            println(fmt!("%? %? %?", r, g, b));
+            std::str::push_str(&mut data, fmt!("%? %? %?", r, g, b));
         }
     }
+
+    println(data);
 }
