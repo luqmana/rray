@@ -13,7 +13,7 @@ fn makeGrid(w: uint, h: uint, x: uint, y: uint) -> ~[~[Pixel]] {
 }
 
 // Basically shoot a ray out to every primitive in our scene and find the one in front
-fn intersectNodes(ps: &[@Object], ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection> {
+fn intersectNodes(ps: &[~Object], ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection> {
     do ps.rev_iter().fold(None) |y: Option<Intersection>, x| {
         match x.intersect(ray, origin) {
             Some(newIntersection @ (rayLen, _, _)) => {
@@ -28,7 +28,7 @@ fn intersectNodes(ps: &[@Object], ray: &Vec3f32, origin: &Vec3f32) -> Option<Int
 }
 
 // Calculate the colour value for some ray
-fn trace(ps: &[@Object], amb: &Vec3f32, ray: &Vec3f32, origin: &Vec3f32, lights: &[Light]) -> Colour {
+fn trace(ps: &[~Object], amb: &Vec3f32, ray: &Vec3f32, origin: &Vec3f32, lights: &[Light]) -> Colour {
     do intersectNodes(ps, ray, origin).map_default(
         Vec3::zero() // No intersection, so just give back black
     ) |&(iRayLen, iRay, iP)| {

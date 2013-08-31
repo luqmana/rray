@@ -21,7 +21,7 @@ pub struct Scene {
     lights: ~[Light],
 
     // Objects to possibly render
-    primitives: ~[@Object],
+    primitives: ~[~Object],
 
     // Ambient colour
     ambient: Colour,
@@ -97,31 +97,31 @@ pub fn getRefScene() -> Scene {
             }
         ],
         primitives: ~[
-            @Sphere {
+            ~Sphere {
                 pos: Vec3::new(0.0, 0.0, -400.0),
                 rad: 100.0,
                 mat: mat1
-            } as @Object,
-            @Sphere {
+            } as ~Object,
+            ~Sphere {
                 pos: Vec3::new(200.0, 50.0, -100.0),
                 rad: 150.0,
                 mat: mat1
-            } as @Object,
-            @Sphere {
+            } as ~Object,
+            ~Sphere {
                 pos: Vec3::new(0.0, -1200.0, -500.0),
                 rad: 1000.0,
                 mat: mat2
-            } as @Object,
-            @Sphere {
+            } as ~Object,
+            ~Sphere {
                 pos: Vec3::new(-100.0, 25.0, -300.0),
                 rad: 50.0,
                 mat: mat3
-            } as @Object,
-            @Sphere {
+            } as ~Object,
+            ~Sphere {
                 pos: Vec3::new(0.0, 100.0, -250.0),
                 rad: 25.0,
                 mat: mat1
-            } as @Object
+            } as ~Object
         ],
         ambient: Vec3::new(0.3, 0.3, 0.3),
         camera: Vec3::new(0.0, 0.0, 800.0),
