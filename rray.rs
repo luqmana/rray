@@ -1,10 +1,7 @@
 #[link(name = "rray", vers = "0.1")];
 
-extern mod lmath;
-
-use std::uint;
-
 mod geometry;
+mod math;
 mod scene;
 mod trace;
 
@@ -21,8 +18,8 @@ fn main() {
 
     let mut data = std::str::with_capacity(scene.width * scene.height * 8);
 
-    for uint::range(0, scene.height) |y| {
-        for uint::range(0, scene.width) |x| {
+    for y in range(0u, scene.height) {
+        for x in range(0u, scene.width) {
             let pix = r[y][x];
 
             // Clamp our rgb values to 0-255

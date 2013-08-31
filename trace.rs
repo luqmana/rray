@@ -1,8 +1,7 @@
-use std::iterator::*;
 use std::vec;
 
 use geometry::*;
-use lmath::vec::*;
+use math::*;
 use scene::*;
 
 fn makeGrid(w: uint, h: uint, x: uint, y: uint) -> ~[~[Pixel]] {
@@ -14,7 +13,7 @@ fn makeGrid(w: uint, h: uint, x: uint, y: uint) -> ~[~[Pixel]] {
 }
 
 // Basically shoot a ray out to every primitive in our scene and find the one in front
-fn intersectNodes(ps: &[@Primitive], ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection> {
+fn intersectNodes(ps: &[@Object], ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection> {
     do ps.rev_iter().fold(None) |y: Option<Intersection>, x| {
         match x.intersect(ray, origin) {
             Some(newIntersection @ (rayLen, _, _)) => {
@@ -29,7 +28,7 @@ fn intersectNodes(ps: &[@Primitive], ray: &Vec3f32, origin: &Vec3f32) -> Option<
 }
 
 // Calculate the colour value for some ray
-fn trace(ps: &[@Primitive], amb: &Vec3f32, ray: &Vec3f32, origin: &Vec3f32, lights: &[Light]) -> Colour {
+fn trace(ps: &[@Object], amb: &Vec3f32, ray: &Vec3f32, origin: &Vec3f32, lights: &[Light]) -> Colour {
     do intersectNodes(ps, ray, origin).map_default(
         Vec3::zero() // No intersection, so just give back black
     ) |&(iRayLen, iRay, iP)| {
@@ -40,14 +39,15 @@ fn trace(ps: &[@Primitive], amb: &Vec3f32, ray: &Vec3f32, origin: &Vec3f32, ligh
         let mat = iP.mat();
 
         // Find where the lights in the scene intersect with the current object
-        let lightIntersections = do lights.filter_mapped |&light| {
+        let lightIntersections = do lights.iter().filter_map |&light| {
+
             let shadowRay = light.pos.sub_v(&intersection);
 
             match intersectNodes(ps, &shadowRay, &intersection) {
                 None => Some((light, shadowRay)),
                 _ => None
             }
-        };
+        }.collect::<~[(Light, Vec3f32)]>();
 
         // Calculate colour values based on the object's material
         let shadedColours = do lightIntersections.map |&(light, shadowRay)| {
@@ -58,7 +58,7 @@ fn trace(ps: &[@Primitive], amb: &Vec3f32, ray: &Vec3f32, origin: &Vec3f32, ligh
 
             // and the specular coefficient
             let refShadowRay = normalizedShadowRay.sub_v(&normal.mul_t(2.0 * diffuseCoef));
-            let specularCoef = refShadowRay.dot(&normalizedRay).pow(mat.shininess);
+            let specularCoef = refShadowRay.dot(&normalizedRay).pow(&mat.shininess);
 
             // Now for the colours
 
@@ -91,7 +91,7 @@ fn trace(ps: &[@Primitive], amb: &Vec3f32, ray: &Vec3f32, origin: &Vec3f32, ligh
 fn doTrace(s: &Scene, sp: &SceneParams, posn: &Pixel) -> Colour {
 
     // If antialias is on break the pixel into 4 'sub pixels'
-    let subPixels = if sp.antialias {
+    let subPixels: ~[Pixel] = if sp.antialias {
         ~[Vec2::new(posn.x + 0.25, posn.y + 0.25),
           Vec2::new(posn.x + 0.25, posn.y + 0.75),
           Vec2::new(posn.x + 0.75, posn.y + 0.25),
@@ -103,7 +103,7 @@ fn doTrace(s: &Scene, sp: &SceneParams, posn: &Pixel) -> Colour {
     // Evenly weight the colour contribution of each sub pixel
     let coef = 1.0 / (subPixels.len() as f32);
 
-    do subPixels.rev_iter().fold(Vec3::zero()) |results, &cs| {
+    do subPixels.rev_iter().fold(Vec3::zero()) |results, &cs: &Pixel| {
         let currentPixel = sp.topPixel
                             .add_v(&sp.horVec.mul_t(sp.aspectRatio * cs.x))
                             .add_v(&s.up.mul_t(-cs.y));

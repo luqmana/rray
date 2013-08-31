@@ -1,12 +1,12 @@
-use lmath::vec::*;
+use math::*;
 
 pub static EPSILON: f32 = 1.0e-4;
 
 pub type Pixel = Vec2f32;
 pub type Colour = Vec3f32;
-pub type Intersection = (f32, Vec3f32, @Primitive);
+pub type Intersection = (f32, Vec3f32, @Object);
 
-pub trait Primitive {
+pub trait Object {
     // Determine if a ray from some origin intersects with us
     // and if so give back the intersection point
     fn intersect(&self, ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection>;
@@ -33,7 +33,7 @@ pub struct Sphere {
     mat: Material      // Material
 }
 
-impl Primitive for Sphere {
+impl Object for Sphere {
     // Determine if a ray from some origin intersects with us
     // and if so give back the intersection point
     fn intersect(&self, ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection> {
@@ -41,7 +41,7 @@ impl Primitive for Sphere {
         // the quadratic equation to check for an intersection
         let line = self.pos.sub_v(origin);
         let rayLens = quadRoot(ray.length2(), -2.0 * line.dot(ray),
-                               line.length2() - self.rad.pow(2.0));
+                               line.length2() - self.rad.pow(&2.0));
 
         // Find the shortest ray which hits us, if any
         let shortestRay = match rayLens.len() {
@@ -56,7 +56,7 @@ impl Primitive for Sphere {
         do shortestRay.chain |rayLen| {
             if rayLen > EPSILON {
                 let intersect_ray = ray.mul_t(rayLen).sub_v(&line);
-                Some((rayLen, intersect_ray, @*self as @Primitive))
+                Some((rayLen, intersect_ray, @*self as @Object))
             } else { None }
         }
     }
@@ -72,7 +72,7 @@ fn quadRoot(a: f32, b: f32, c: f32) -> ~[f32] {
     if a.abs() < EPSILON {
         ~[(-c) / b]
     } else {
-        let d = b.pow(2.0) - (4.0 * a * c);
+        let d = b.pow(&2.0) - (4.0 * a * c);
         if d.is_positive() {
             let sq = d.sqrt();
             let ta = a * 2.0;
