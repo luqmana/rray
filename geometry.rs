@@ -41,7 +41,7 @@ impl Object for Sphere {
         // the quadratic equation to check for an intersection
         let line = self.pos.sub_v(origin);
         let rayLens = quad_root(ray.length2(), -2.0 * line.dot(ray),
-                                line.length2() - self.rad.powi(2));
+                                line.length2() - (self.rad * self.rad));
 
         // Find the shortest ray which hits us, if any
         let shortestRay = match rayLens {
@@ -78,7 +78,7 @@ fn quad_root(a: f32, b: f32, c: f32) -> QuadRootResult {
     if a.abs() < EPSILON {
         One((-c) / b)
     } else {
-        let d = b.powi(2) - (4.0 * a * c);
+        let d = (b * b) - (4.0 * a * c);
         if d.is_positive() {
             let sq = d.sqrt();
             let ta = a * 2.0;
