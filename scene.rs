@@ -46,7 +46,7 @@ pub struct Scene {
 // Setup some of the scene parameters
 pub fn setup_scene(s: &Scene, aa: bool) -> SceneParams {
     let aspectRatio = (s.width as f32) / (s.height as f32);
-    let viewLen = (s.height as f32) / s.fov.to_radians().tan();
+    let viewLen = (s.height / 2) as f32 / s.fov.div(&2.0).to_radians().tan();
     let horVec = s.view.cross(&s.up).normalize();
     let centerPixel = s.camera.add_v(&s.view.mul_t(viewLen));
     let topPixel = centerPixel
