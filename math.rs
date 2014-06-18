@@ -1,17 +1,17 @@
 use std::num::{one, One};
 
 pub struct Vec2f32 {
-    x: f32,
-    y: f32
+    pub x: f32,
+    pub y: f32
 }
 
 pub struct Vec3f32 {
-    x: f32,
-    y: f32,
-    z: f32
+    pub x: f32,
+    pub y: f32,
+    pub z: f32
 }
 
-pub trait Vector<T:Float + One> {
+pub trait MathVector<T:Float + One> {
     fn add_v(&self, v: &Self) -> Self;
     fn sub_v(&self, v: &Self) -> Self;
     fn mul_v(&self, v: &Self) -> Self;
@@ -82,7 +82,7 @@ impl Vec3<f32> for Vec3f32 {
     }
 }
 
-impl Vector<f32> for Vec2f32 {
+impl MathVector<f32> for Vec2f32 {
     fn add_v(&self, v: &Vec2f32) -> Vec2f32 {
         Vec2f32 {
             x: self.x + v.x,
@@ -116,7 +116,7 @@ impl Vector<f32> for Vec2f32 {
     }
 }
 
-impl Vector<f32> for Vec3f32 {
+impl MathVector<f32> for Vec3f32 {
     fn add_v(&self, v: &Vec3f32) -> Vec3f32 {
         Vec3f32 {
             x: self.x + v.x,
@@ -151,5 +151,16 @@ impl Vector<f32> for Vec3f32 {
 
     fn dot(&self, v: &Vec3f32) -> f32 {
         self.x * v.x + self.y * v.y + self.z * v.z
+    }
+}
+
+pub trait Clamp {
+    fn clamp(&self, min: f32, max: f32) -> Self;
+}
+
+impl Clamp for f32 {
+    fn clamp(&self, min: f32, max: f32) -> f32 {
+        if *self < min { min } else
+        if *self > max { max } else { *self }
     }
 }

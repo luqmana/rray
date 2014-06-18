@@ -4,12 +4,12 @@ pub static EPSILON: f32 = 1.0e-4;
 
 pub type Pixel = Vec2f32;
 pub type Colour = Vec3f32;
-pub type Intersection = (f32, Vec3f32, @Object);
+pub type Intersection<'a> = (f32, Vec3f32, &'a Object);
 
 pub trait Object {
     // Determine if a ray from some origin intersects with us
     // and if so give back the intersection point
-    fn intersect(&self, ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection>;
+    fn intersect<'a>(&'a self, ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection<'a>>;
 
     // Get the material
     #[inline(always)]
@@ -18,47 +18,47 @@ pub trait Object {
 
 // Material properties for primitives
 pub struct Material {
-    diffuse: Colour,    // Diffuse colour component
-    specular: Colour,   // Specular colour component
-    shininess: f32,     // Is the rock shiny????
-    mirror: f32         // And mirror-y?
+    pub diffuse: Colour,    // Diffuse colour component
+    pub specular: Colour,   // Specular colour component
+    pub shininess: f32,     // Is the rock shiny????
+    pub mirror: f32         // And mirror-y?
 }
 
 // Supported primitives
 // TODO: Add more than just spheres
 
 pub struct Sphere {
-    pos: Vec3f32,      // Position
-    rad: f32,          // Radius
-    mat: Material      // Material
+    pub pos: Vec3f32,      // Position
+    pub rad: f32,          // Radius
+    pub mat: Material      // Material
 }
 
 impl Object for Sphere {
     // Determine if a ray from some origin intersects with us
     // and if so give back the intersection point
-    fn intersect(&self, ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection> {
+    fn intersect<'a>(&'a self, ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection<'a>> {
         // Determine the ray from the origin to us and solve
         // the quadratic equation to check for an intersection
         let line = self.pos.sub_v(origin);
-        let rayLens = quadRoot(ray.length2(), -2.0 * line.dot(ray),
-                               line.length2() - self.rad.pow(&2.0));
+        let rayLens = quad_root(ray.length2(), -2.0 * line.dot(ray),
+                                line.length2() - self.rad.powi(2));
 
         // Find the shortest ray which hits us, if any
         let shortestRay = match rayLens.len() {
-            1 => Some(rayLens[0]),
-            2 if rayLens[0] < rayLens[1] => Some(rayLens[0]),
-            2 => Some(rayLens[1]),
+            1 => Some(*rayLens.get(0)),
+            2 if *rayLens.get(0) < *rayLens.get(1) => Some(*rayLens.get(0)),
+            2 => Some(*rayLens.get(1)),
             _ => None
         };
 
         // Finally, if we've found one, return the intersection point
         // that is intersection ray, it's length and a reference to the object
-        do shortestRay.chain |rayLen| {
+        shortestRay.and_then(|rayLen| {
             if rayLen > EPSILON {
                 let intersect_ray = ray.mul_t(rayLen).sub_v(&line);
-                Some((rayLen, intersect_ray, @*self as @Object))
+                Some((rayLen, intersect_ray, self as &Object))
             } else { None }
-        }
+        })
     }
 
     // Get the material
@@ -68,18 +68,18 @@ impl Object for Sphere {
     }
 }
 
-fn quadRoot(a: f32, b: f32, c: f32) -> ~[f32] {
+fn quad_root(a: f32, b: f32, c: f32) -> Vec<f32> {
     if a.abs() < EPSILON {
-        ~[(-c) / b]
+        vec![(-c) / b]
     } else {
-        let d = b.pow(&2.0) - (4.0 * a * c);
+        let d = b.powi(2) - (4.0 * a * c);
         if d.is_positive() {
             let sq = d.sqrt();
             let ta = a * 2.0;
 
-            ~[((-b) + sq) / ta, ((-b) - sq) / ta]
+            vec![((-b) + sq) / ta, ((-b) - sq) / ta]
         } else {
-            ~[]
+            vec![]
         }
     }
 }
