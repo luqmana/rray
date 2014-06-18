@@ -45,10 +45,10 @@ fn trace(ps: &[Box<Object>], amb: &Vec3f32, ray: &Vec3f32, origin: &Vec3f32, lig
                 None => Some((light, shadowRay)),
                 _ => None
             }
-        }).collect::<Vec<(Light, Vec3f32)>>();
+        });
 
         // Calculate colour values based on the object's material
-        let shadedColours = lightIntersections.iter().map(|&(light, shadowRay)| {
+        let shadedColours = lightIntersections.map(|(light, shadowRay)| {
             let normalizedShadowRay = shadowRay.normalize();
 
             // calculate the diffuse coefficient
