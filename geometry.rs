@@ -44,11 +44,11 @@ impl Object for Sphere {
                                 line.length2() - self.rad.powi(2));
 
         // Find the shortest ray which hits us, if any
-        let shortestRay = match rayLens.len() {
-            1 => Some(*rayLens.get(0)),
-            2 if *rayLens.get(0) < *rayLens.get(1) => Some(*rayLens.get(0)),
-            2 => Some(*rayLens.get(1)),
-            _ => None
+        let shortestRay = match rayLens {
+            Zero => None,
+            One(a) => Some(a),
+            Two(a, b) if a < b => Some(a),
+            Two(_, b) => Some(b)
         };
 
         // Finally, if we've found one, return the intersection point
@@ -68,18 +68,24 @@ impl Object for Sphere {
     }
 }
 
-fn quad_root(a: f32, b: f32, c: f32) -> Vec<f32> {
+enum QuadRootResult {
+    Zero,
+    One(f32),
+    Two(f32, f32)
+}
+
+fn quad_root(a: f32, b: f32, c: f32) -> QuadRootResult {
     if a.abs() < EPSILON {
-        vec![(-c) / b]
+        One((-c) / b)
     } else {
         let d = b.powi(2) - (4.0 * a * c);
         if d.is_positive() {
             let sq = d.sqrt();
             let ta = a * 2.0;
 
-            vec![((-b) + sq) / ta, ((-b) - sq) / ta]
+            Two(((-b) + sq) / ta, ((-b) - sq) / ta)
         } else {
-            vec![]
+            Zero
         }
     }
 }
