@@ -86,24 +86,12 @@ fn trace(ps: &[Box<Object>], amb: &Vec3f32, ray: &Vec3f32, origin: &Vec3f32, lig
 }
 
 // Intiate the actual shooting of rays and tracing for a given pixel
-fn do_trace(s: &Scene, sp: &SceneParams, posn: &Pixel) -> Colour {
-
-    // If antialias is on break the pixel into 4 'sub pixels'
-    let subPixels: Vec<Pixel> = if sp.antialias {
-        vec![
-            Vec2::new(posn.x + 0.25, posn.y + 0.25),
-            Vec2::new(posn.x + 0.25, posn.y + 0.75),
-            Vec2::new(posn.x + 0.75, posn.y + 0.25),
-            Vec2::new(posn.x + 0.75, posn.y + 0.75)
-        ]
-    } else {
-        vec![Vec2::new(posn.x, posn.y)]
-    };
+fn do_trace(s: &Scene, sp: &SceneParams, sub_pixels: &[Pixel]) -> Colour {
 
     // Evenly weight the colour contribution of each sub pixel
-    let coef = 1.0 / (subPixels.len() as f32);
+    let coef = 1.0 / (sub_pixels.len() as f32);
 
-    subPixels.iter().rev().fold(Vec3::zero(), |results, &cs: &Pixel| {
+    sub_pixels.iter().rev().fold(Vec3::zero(), |results, &cs: &Pixel| {
         let currentPixel = sp.topPixel
                             .add_v(&sp.horVec.mul_t(sp.aspectRatio * cs.x))
                             .add_v(&s.up.mul_t(-cs.y));
@@ -114,11 +102,28 @@ fn do_trace(s: &Scene, sp: &SceneParams, posn: &Pixel) -> Colour {
     })
 }
 
+fn do_trace_antialias(s: &Scene, sp: &SceneParams, posn: &Pixel) -> Colour {
+    let sub_pixels = [
+        Vec2::new(posn.x + 0.25, posn.y + 0.25),
+        Vec2::new(posn.x + 0.25, posn.y + 0.75),
+        Vec2::new(posn.x + 0.75, posn.y + 0.25),
+        Vec2::new(posn.x + 0.75, posn.y + 0.75)
+    ];
+    do_trace(s, sp, sub_pixels)
+}
+
+fn do_trace_noantialias(s: &Scene, sp: &SceneParams, posn: &Pixel) -> Colour {
+    let sub_pixels = [*posn];
+    do_trace(s, sp, sub_pixels)
+}
+
 // Let's render our beautiful scene
 pub fn render(s: &Scene, antialias: bool) -> Vec<Vec<Colour>> {
     let params = setup_scene(s, antialias);
+    let f = if antialias { do_trace_antialias }
+            else         { do_trace_noantialias };
 
     make_grid(s.width, s.height, 0, 0).move_iter().map(|column| {
-        column.move_iter().map(|pix| do_trace(s, &params, &pix)).collect()
+        column.move_iter().map(|pix| f(s, &params, &pix)).collect()
     }).collect()
 }
