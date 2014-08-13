@@ -14,7 +14,8 @@ fn make_grid(w: uint, h: uint, x: uint, y: uint) -> Vec<Vec<Pixel>> {
 fn intersect_nodes<'a>(ps: &'a [Box<Object>], ray: &Vec3f32, origin: &Vec3f32) -> Option<Intersection<'a>> {
     ps.iter().rev().fold(None, |y: Option<Intersection<'a>>, x| {
         match x.intersect(ray, origin) {
-            Some(newIntersection @ (rayLen, _, _)) => {
+            Some(newIntersection) => {
+                let (rayLen, _, _) = newIntersection;
                 match y {
                     Some((oRayLen, _, _)) if oRayLen < rayLen => y,
                     _ => Some(newIntersection)

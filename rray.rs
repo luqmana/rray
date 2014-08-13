@@ -24,7 +24,7 @@ fn main() {
 
     for y in range(0u, scene.height) {
         for x in range(0u, scene.width) {
-            let pix = *r.get(y).get(x);
+            let pix = r[y][x];
 
             // Clamp our rgb values to 0-255
             let r = (pix.x * 255.0).clamp(0., 255.) as int;
