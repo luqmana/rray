@@ -4,7 +4,7 @@ pub static EPSILON: f32 = 1.0e-4;
 
 pub type Pixel = Vec2f32;
 pub type Colour = Vec3f32;
-pub type Intersection<'a> = (f32, Vec3f32, &'a Object);
+pub type Intersection<'a> = (f32, Vec3f32, &'a Object+'a);
 
 pub trait Object {
     // Determine if a ray from some origin intersects with us

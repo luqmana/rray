@@ -21,7 +21,7 @@ pub struct Scene {
     pub lights: Vec<Light>,
 
     // Objects to possibly render
-    pub primitives: Vec<Box<Object>>,
+    pub primitives: Vec<Box<Object + 'static>>,
 
     // Ambient colour
     pub ambient: Colour,

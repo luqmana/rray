@@ -124,7 +124,7 @@ pub fn render(s: &Scene, antialias: bool) -> Vec<Vec<Colour>> {
     let f = if antialias { do_trace_antialias }
             else         { do_trace_noantialias };
 
-    make_grid(s.width, s.height, 0, 0).move_iter().map(|column| {
-        column.move_iter().map(|pix| f(s, &params, &pix)).collect()
+    make_grid(s.width, s.height, 0, 0).into_iter().map(|column| {
+        column.into_iter().map(|pix| f(s, &params, &pix)).collect()
     }).collect()
 }

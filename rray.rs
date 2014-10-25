@@ -1,6 +1,7 @@
 #![link(name = "rray", vers = "0.1")]
 
 #![feature(globs)]
+#![allow(non_snake_case)]
 
 use math::Clamp;
 
