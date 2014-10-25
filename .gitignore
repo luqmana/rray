@@ -1,6 +1,8 @@
 rray
 test*.png
 *.ppm
+*.png
 *.dsym
 *.dylib
 .DS_Store
+target

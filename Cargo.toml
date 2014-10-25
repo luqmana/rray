@@ -1,0 +1,8 @@
+[project]
+name = "rray"
+version = "0.0.1"
+authors = ["Luqman Aden <me@luqman.ca>"]
+
+[[bin]]
+name = "rray"
+path = "src/rray.rs"
