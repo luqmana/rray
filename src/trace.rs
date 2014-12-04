@@ -1,6 +1,7 @@
 use geometry::*;
 use math::*;
 use scene::*;
+use std::num::Float;
 
 fn make_grid(w: uint, h: uint, x: uint, y: uint) -> Vec<Vec<Pixel>> {
     Vec::from_fn(h, |j| {
@@ -110,12 +111,12 @@ fn do_trace_antialias(s: &Scene, sp: &SceneParams, posn: &Pixel) -> Colour {
         Vec2::new(posn.x + 0.75, posn.y + 0.25),
         Vec2::new(posn.x + 0.75, posn.y + 0.75)
     ];
-    do_trace(s, sp, sub_pixels)
+    do_trace(s, sp, &sub_pixels)
 }
 
 fn do_trace_noantialias(s: &Scene, sp: &SceneParams, posn: &Pixel) -> Colour {
     let sub_pixels = [*posn];
-    do_trace(s, sp, sub_pixels)
+    do_trace(s, sp, &sub_pixels)
 }
 
 // Let's render our beautiful scene

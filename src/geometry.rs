@@ -1,10 +1,11 @@
 use math::*;
+use std::num::Float;
 
 pub static EPSILON: f32 = 1.0e-4;
 
 pub type Pixel = Vec2f32;
 pub type Colour = Vec3f32;
-pub type Intersection<'a> = (f32, Vec3f32, &'a Object+'a);
+pub type Intersection<'a> = (f32, Vec3f32, &'a (Object + 'a));
 
 pub trait Object {
     // Determine if a ray from some origin intersects with us
@@ -45,10 +46,10 @@ impl Object for Sphere {
 
         // Find the shortest ray which hits us, if any
         let shortestRay = match rayLens {
-            Zero => None,
-            One(a) => Some(a),
-            Two(a, b) if a < b => Some(a),
-            Two(_, b) => Some(b)
+            QuadRootResult::Zero => None,
+            QuadRootResult::One(a) => Some(a),
+            QuadRootResult::Two(a, b) if a < b => Some(a),
+            QuadRootResult::Two(_, b) => Some(b)
         };
 
         // Finally, if we've found one, return the intersection point
@@ -76,16 +77,16 @@ enum QuadRootResult {
 
 fn quad_root(a: f32, b: f32, c: f32) -> QuadRootResult {
     if a.abs() < EPSILON {
-        One((-c) / b)
+        QuadRootResult::One((-c) / b)
     } else {
         let d = (b * b) - (4.0 * a * c);
         if d.is_positive() {
             let sq = d.sqrt();
             let ta = a * 2.0;
 
-            Two(((-b) + sq) / ta, ((-b) - sq) / ta)
+            QuadRootResult::Two(((-b) + sq) / ta, ((-b) - sq) / ta)
         } else {
-            Zero
+            QuadRootResult::Zero
         }
     }
 }

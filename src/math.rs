@@ -1,4 +1,4 @@
-use std::num::{one, One};
+use std::num::{Float, One};
 
 pub struct Vec2f32 {
     pub x: f32,
@@ -11,7 +11,7 @@ pub struct Vec3f32 {
     pub z: f32
 }
 
-pub trait MathVector<T:Float + One> {
+pub trait MathVector<T: Float + One> {
     fn add_v(&self, v: &Self) -> Self;
     fn sub_v(&self, v: &Self) -> Self;
     fn mul_v(&self, v: &Self) -> Self;
@@ -24,7 +24,8 @@ pub trait MathVector<T:Float + One> {
         self.dot(self)
     }
     fn normalize(&self) -> Self {
-        self.mul_t(one::<T>() / self.length())
+        let one: T = Float::one();
+        self.mul_t(one / self.length())
     }
 }
 

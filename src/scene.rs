@@ -1,5 +1,6 @@
 use geometry::*;
 use math::*;
+use std::num::{Float, FloatMath};
 
 pub struct SceneParams {
     pub aspectRatio: f32,
